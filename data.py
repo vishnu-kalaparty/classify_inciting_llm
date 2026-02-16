@@ -121,3 +121,26 @@ def format_few_shot_examples(examples: List[dict]) -> str:
             f"Example {i}:\nText: \"{text}\"\nClassification: {classification}"
         )
     return "\n\n".join(formatted)
+
+
+def format_binary_few_shot_examples(examples: List[dict], category: str) -> str:
+    """
+    Format few-shot examples for binary classification.
+    Only includes examples relevant to this binary: gold label is this category or None.
+    Converts to binary: category name or "Not <category>".
+    """
+    relevant = [
+        ex
+        for ex in examples
+        if ex.get("classification") == category or ex.get("classification") == "None"
+    ]
+    not_label = f"Not {category}"
+    formatted = []
+    for i, ex in enumerate(relevant, 1):
+        text = ex.get("text", "")
+        original_label = ex.get("classification", "")
+        binary_label = category if original_label == category else not_label
+        formatted.append(
+            f"Example {i}:\nText: \"{text}\"\nClassification: {binary_label}"
+        )
+    return "\n\n".join(formatted)
