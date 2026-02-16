@@ -24,16 +24,16 @@ INCITE_XLSX = os.path.join(SCRIPT_DIR, "INCITE-Dataset.xlsx")
 FEW_SHOT_EXAMPLES_FILE = os.path.join(SCRIPT_DIR, "inciting_few_shot_examples.json")
 
 # --- Run defaults ---
-DEFAULT_MAX_SAMPLES = 5  # -1 = all; >0 = cap
-DEFAULT_OUTPUT = "inciting_gpt_5_mini_zero_shot.jsonl"
+DEFAULT_MAX_SAMPLES = -1  # -1 = all; >0 = cap
+DEFAULT_OUTPUT = "inciting_gpt_5_mini_few_shot.jsonl"
 DEFAULT_SLEEP_SECONDS = 0
 DEFAULT_NUM_THREADS = 5
 
 START_INDEX = 0
-RUN_ERRORS_FILE = False  # Set True to re-run only error records and merge back
+RUN_ERRORS_FILE = True  # Set True to re-run only error records and merge back
 
 # --- Few-shot ---
-ENABLE_FEW_SHOT = False  # Set True and add inciting_few_shot_examples.json if needed
+ENABLE_FEW_SHOT = True  # Set True and add inciting_few_shot_examples.json if needed
 
 FEW_SHOT_BRIDGE_PROMPT = """
 ---
