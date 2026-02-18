@@ -41,12 +41,23 @@ def call_gpt_completion(prompt: str) -> str:
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
     }
+    # payload = {
+    #     "model": MODEL_NAME,
+    #     "messages": [{"role": "user", "content": prompt}],
+    #     # "max_completion_tokens": MAX_TOKENS,
+    #     "seed": 42,
+    # }
+
     payload = {
         "model": MODEL_NAME,
-        "messages": [{"role": "user", "content": prompt}],
-        "max_completion_tokens": MAX_TOKENS,
-        "seed": 42,
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "max_tokens": MAX_TOKENS,
+        "temperature": 0,  # deterministic for research / bias analysis
+        "random_seed": 42,
     }
+
     resp = requests.post(API_URL, headers=headers, json=payload, timeout=120)
     if resp.status_code != 200:
         try:
