@@ -123,12 +123,11 @@ def format_few_shot_examples(examples: List[dict]) -> str:
     return "\n\n".join(formatted)
 
 
-def format_binary_few_shot_examples(examples: List[dict], category: str) -> str:
+def get_few_shot_for_category(examples: List[dict], category: str) -> List[dict]:
     """
-    Format few-shot examples for binary classification.
-    Positive examples: all examples matching this category.
-    Negative examples: 1 from each of the other two inciting categories + 2 from None.
-    All negatives are labelled "Not <category>".
+    Return the few-shot examples actually used by a binary classifier:
+    all examples of the target category, first example from each other
+    inciting category, and first 2 None examples.
     """
     positive = [ex for ex in examples if ex.get("classification") == category]
 
@@ -142,7 +141,17 @@ def format_binary_few_shot_examples(examples: List[dict], category: str) -> str:
     none_examples = [ex for ex in examples if ex.get("classification") == "None"]
     negative_none = none_examples[:2]
 
-    relevant = positive + negative_other + negative_none
+    return positive + negative_other + negative_none
+
+
+def format_binary_few_shot_examples(examples: List[dict], category: str) -> str:
+    """
+    Format few-shot examples for binary classification.
+    Positive examples: all examples matching this category.
+    Negative examples: first from each other inciting category + first 2
+    None examples.  All negatives are labelled "Not <category>".
+    """
+    relevant = get_few_shot_for_category(examples, category)
     not_label = f"Not {category}"
     formatted = []
     for i, ex in enumerate(relevant, 1):

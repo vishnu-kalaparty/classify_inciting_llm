@@ -31,7 +31,7 @@ from constants import (
     START_INDEX,
     VALID_LABELS,
 )
-from data import load_few_shot_examples, load_incite_xlsx
+from data import get_few_shot_for_category, load_few_shot_examples, load_incite_xlsx
 from prompts import build_binary_prompt
 
 
@@ -53,9 +53,8 @@ def call_gpt_completion(prompt: str) -> str:
         "messages": [
             {"role": "user", "content": prompt}
         ],
-        "max_tokens": MAX_TOKENS,
-        "temperature": 0,  # deterministic for research / bias analysis
-        "random_seed": 42,
+        "max_completion_tokens": MAX_TOKENS,
+        "seed": 42,  # OpenAI uses "seed"
     }
 
     resp = requests.post(API_URL, headers=headers, json=payload, timeout=120)
@@ -73,7 +72,10 @@ def call_gpt_completion(prompt: str) -> str:
 def normalize_gold_label(label_val: str) -> str:
     if not label_val:
         return "Unknown"
-    return LABEL_MAP_STR.get(label_val.strip().lower(), "Unknown")
+    stripped = label_val.strip()
+    if stripped in VALID_LABELS:
+        return stripped
+    return LABEL_MAP_STR.get(stripped.lower(), "Unknown")
 
 
 def extract_binary_classification(response_text: str, category: str) -> str:
@@ -380,11 +382,6 @@ def classify_incite(
     if ENABLE_FEW_SHOT:
         few_shot_examples = load_few_shot_examples()
         print(f"Few-shot ENABLED ({len(few_shot_examples)} examples)", flush=True)
-        few_shot_texts = {ex.get("text", "").strip() for ex in few_shot_examples}
-        n_before = len(items)
-        items = [ex for ex in items if ex.get("text", "").strip() not in few_shot_texts]
-        if n_before - len(items):
-            print(f"Skipped {n_before - len(items)} examples in few-shot set.", flush=True)
     else:
         print("Few-shot DISABLED", flush=True)
 
@@ -393,9 +390,15 @@ def classify_incite(
     all_results: Dict[str, List[Dict[str, Any]]] = {}
     for category in BINARY_CATEGORIES:
         output_path = CATEGORY_OUTPUT_MAP[category]
+        cat_items = items
+        if few_shot_examples is not None:
+            relevant = get_few_shot_for_category(few_shot_examples, category)
+            relevant_texts = {ex.get("text", "").strip() for ex in relevant}
+            cat_items = [ex for ex in items if ex.get("text", "").strip() not in relevant_texts]
+            print(f"[{category}] Excluded {len(items) - len(cat_items)} few-shot examples from classification.", flush=True)
         results = run_binary_classifier(
             category=category,
-            items=items,
+            items=cat_items,
             output_path=output_path,
             start_index=start_index,
             num_threads=num_threads,
