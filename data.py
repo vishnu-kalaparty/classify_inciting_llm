@@ -8,7 +8,7 @@ import zipfile
 import xml.etree.ElementTree as ET
 from typing import Any, Dict, List
 
-from constants import FEW_SHOT_EXAMPLES_FILE, INCITE_XLSX
+from constants import BINARY_CATEGORIES, FEW_SHOT_EXAMPLES_FILE, INCITE_XLSX
 
 
 def _read_xlsx_shared_strings(zip_file: zipfile.ZipFile) -> List[str]:
@@ -126,14 +126,23 @@ def format_few_shot_examples(examples: List[dict]) -> str:
 def format_binary_few_shot_examples(examples: List[dict], category: str) -> str:
     """
     Format few-shot examples for binary classification.
-    Only includes examples relevant to this binary: gold label is this category or None.
-    Converts to binary: category name or "Not <category>".
+    Positive examples: all examples matching this category.
+    Negative examples: 1 from each of the other two inciting categories + 2 from None.
+    All negatives are labelled "Not <category>".
     """
-    relevant = [
-        ex
-        for ex in examples
-        if ex.get("classification") == category or ex.get("classification") == "None"
-    ]
+    positive = [ex for ex in examples if ex.get("classification") == category]
+
+    other_categories = [c for c in BINARY_CATEGORIES if c != category]
+    negative_other = []
+    for other_cat in other_categories:
+        others = [ex for ex in examples if ex.get("classification") == other_cat]
+        if others:
+            negative_other.append(others[0])
+
+    none_examples = [ex for ex in examples if ex.get("classification") == "None"]
+    negative_none = none_examples[:2]
+
+    relevant = positive + negative_other + negative_none
     not_label = f"Not {category}"
     formatted = []
     for i, ex in enumerate(relevant, 1):
