@@ -11,6 +11,7 @@ Generates topic models and visualizations for each major error group:
 import json
 import re
 import os
+import argparse
 from pathlib import Path
 from bertopic import BERTopic
 from sentence_transformers import SentenceTransformer
@@ -180,6 +181,15 @@ def run_bertopic(docs: list[str], label: str, tag: str):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Run BERTopic analysis for Inciting error groups.")
+    parser.add_argument(
+        "--mode",
+        choices=["all", "fp", "fn", "cross"],
+        default="all",
+        help="Select which error group(s) to run: all, fp, fn, or cross.",
+    )
+    args = parser.parse_args()
+
     print("Loading JSONL …")
     records = load_jsonl(JSONL_PATH)
     print(f"  Total records: {len(records)}")
@@ -208,26 +218,29 @@ def main():
     print(f"  FN (Inciting → None):       {len(fn_inciting_to_none)} reasoning texts")
     print(f"  Cross-class (Inc → Inc):    {len(cross_class_errors)} reasoning texts")
 
-    print("\n--- False Positives (None → Inciting): BERTopic on Reasoning ---")
-    run_bertopic(
-        fp_none_to_inciting,
-        "False Positives (None → Inciting)",
-        "fp_none_pred_inciting",
-    )
+    if args.mode in {"all", "fp"}:
+        print("\n--- False Positives (None → Inciting): BERTopic on Reasoning ---")
+        run_bertopic(
+            fp_none_to_inciting,
+            "False Positives (None → Inciting)",
+            "fp_none_pred_inciting",
+        )
 
-    print("\n--- False Negatives (Inciting → None): BERTopic on Reasoning ---")
-    run_bertopic(
-        fn_inciting_to_none,
-        "False Negatives (Inciting → None)",
-        "fn_inciting_pred_none",
-    )
+    if args.mode in {"all", "fn"}:
+        print("\n--- False Negatives (Inciting → None): BERTopic on Reasoning ---")
+        run_bertopic(
+            fn_inciting_to_none,
+            "False Negatives (Inciting → None)",
+            "fn_inciting_pred_none",
+        )
 
-    print("\n--- Cross-class Errors (Inciting ↔ Inciting): BERTopic on Reasoning ---")
-    run_bertopic(
-        cross_class_errors,
-        "Cross-class Errors (Inciting ↔ Inciting)",
-        "cross_class_inciting",
-    )
+    if args.mode in {"all", "cross"}:
+        print("\n--- Cross-class Errors (Inciting ↔ Inciting): BERTopic on Reasoning ---")
+        run_bertopic(
+            cross_class_errors,
+            "Cross-class Errors (Inciting ↔ Inciting)",
+            "cross_class_inciting",
+        )
 
     print("\nDone.")
 
