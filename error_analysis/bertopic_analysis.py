@@ -15,16 +15,19 @@ from pathlib import Path
 from bertopic import BERTopic
 from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import CountVectorizer
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import matplotlib
 matplotlib.use("Agg")
 
 JSONL_PATH = (
     Path(__file__).resolve().parent.parent
     / "Multi-Classification Run"
-    / "inciting_gpt_5_mini_few_shot.jsonl"
+    / "inciting_gpt_5_mini_zero_shot.jsonl"
 )
 OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
 OUTPUT_DIR.mkdir(exist_ok=True)
+TOP_N_WORDS = 15
 
 INCITING_LABELS = {"Identity", "Imputed Misdeeds", "Exhortation"}
 
@@ -72,6 +75,7 @@ def run_bertopic(docs: list[str], label: str, tag: str):
     topic_model = BERTopic(
         embedding_model=embedding_model,
         vectorizer_model=vectorizer,
+        top_n_words=TOP_N_WORDS,
         nr_topics="auto",
         verbose=True,
     )
@@ -79,12 +83,71 @@ def run_bertopic(docs: list[str], label: str, tag: str):
     topics, probs = topic_model.fit_transform(docs)
 
     topic_info = topic_model.get_topic_info()
+    topic_info["Top_Words_15"] = topic_info["Topic"].apply(
+        lambda topic_id: ", ".join(
+            word for word, _ in (topic_model.get_topic(topic_id) or [])[:TOP_N_WORDS]
+        )
+    )
+    custom_labels = {
+        topic_id: f"{topic_id}_" + "_".join(
+            word for word, _ in (topic_model.get_topic(topic_id) or [])[:TOP_N_WORDS]
+        )
+        for topic_id in topic_info["Topic"]
+        if topic_id != -1
+    }
+    topic_model.set_topic_labels(custom_labels)
     info_path = OUTPUT_DIR / f"bertopic_{tag}_topic_info.csv"
     topic_info.to_csv(info_path, index=False)
     print(f"  Topic info saved: {info_path}")
 
     try:
-        fig_bar = topic_model.visualize_barchart(top_n_topics=10, n_words=15)
+        topics_for_bar = topic_info.loc[topic_info["Topic"] != -1, "Topic"].head(10).tolist()
+        # Build a custom barchart so subplot titles and bars are guaranteed to use 15 words.
+        title_labels = []
+        for topic_id in topics_for_bar:
+            words = [word for word, _ in (topic_model.get_topic(topic_id) or [])[:TOP_N_WORDS]]
+            wrapped_words = "<br>".join(
+                ", ".join(words[i : i + 5]) for i in range(0, len(words), 5)
+            )
+            title_labels.append(f"Topic {topic_id}<br>{wrapped_words}")
+
+        cols = 4
+        rows = (len(topics_for_bar) + cols - 1) // cols
+        fig_bar = make_subplots(
+            rows=rows,
+            cols=cols,
+            subplot_titles=title_labels,
+            horizontal_spacing=0.10,
+            vertical_spacing=0.18 if rows > 1 else 0.10,
+        )
+
+        color_cycle = ["#D55E00", "#0072B2", "#CC79A7", "#E69F00", "#56B4E9", "#009E73", "#F0E442"]
+        for idx, topic_id in enumerate(topics_for_bar):
+            topic_terms = (topic_model.get_topic(topic_id) or [])[:TOP_N_WORDS]
+            words = [word for word, _ in topic_terms][::-1]
+            scores = [score for _, score in topic_terms][::-1]
+            row = idx // cols + 1
+            col = idx % cols + 1
+            fig_bar.add_trace(
+                go.Bar(
+                    x=scores,
+                    y=[f"{word}  " for word in words],
+                    orientation="h",
+                    marker_color=color_cycle[idx % len(color_cycle)],
+                ),
+                row=row,
+                col=col,
+            )
+
+        fig_bar.update_layout(
+            template="plotly_white",
+            showlegend=False,
+            title={"text": "<b>Topic Word Scores</b>", "x": 0.5, "xanchor": "center"},
+            width=4000,
+            height=max(500, 360 * rows),
+        )
+        fig_bar.update_xaxes(showgrid=True)
+        fig_bar.update_yaxes(showgrid=True)
         bar_path = OUTPUT_DIR / f"bertopic_{tag}_barchart.html"
         fig_bar.write_html(str(bar_path))
         print(f"  Barchart saved: {bar_path}")
