@@ -1,7 +1,7 @@
 """
-Stanford NER analysis on strategy key words from misclassified samples (Inciting dataset).
-Uses Stanza (Stanford NLP) to extract named entities from the key words
-in model responses for False Negatives and False Positives.
+Stanford NER analysis on key phrases from misclassified samples (Inciting dataset).
+Uses Stanza (Stanford NLP) to extract named entities from key phrases
+in the binary zero-shot combined outputs for False Negatives and False Positives.
 
 FP = Gold: None, Pred: Inciting (Identity / Imputed Misdeeds / Exhortation)
 FN = Gold: Inciting, Pred: None
@@ -17,11 +17,11 @@ import stanza
 
 JSONL_PATH = (
     Path(__file__).resolve().parent.parent
-    / "Multi-Classification Run"
-    / "inciting_gpt_5_mini_zero_shot.jsonl"
+    / "Binary-Classification Run Zero-Shot"
+    / "inciting_combined.jsonl"
 )
-OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
-OUTPUT_DIR.mkdir(exist_ok=True)
+OUTPUT_DIR = Path(__file__).resolve().parent / "outputs" / "ner"
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 INCITING_LABELS = {"Identity", "Imputed Misdeeds", "Exhortation"}
 
@@ -44,18 +44,19 @@ def load_jsonl(path: str | Path) -> list[dict]:
     return records
 
 
-def extract_key_words(model_response: str) -> str:
-    """Pull the strategy key words section from the structured model response."""
-    match = re.search(
-        r"2\.\s*(?:Strategy\s+)?Key\s*(?:Words?|phrases?)\s*:\s*(.+?)(?:\n\s*3\.|$)",
-        model_response,
-        re.IGNORECASE | re.DOTALL,
-    )
-    if match:
-        raw = match.group(1).strip()
-        raw = re.sub(r'[\[\]"\u201c\u201d]', "", raw)
-        return raw
-    return ""
+def derive_pred_label(rec: dict) -> str:
+    """Derive a single predicted label from binary-style flags.
+
+    Priority order: Identity > Imputed Misdeeds > Exhortation.
+    If none of the three are positive, return \"None\".
+    """
+    if rec.get("pred_identity") == "Identity":
+        return "Identity"
+    if rec.get("pred_imputed_misdeeds") == "Imputed Misdeeds":
+        return "Imputed Misdeeds"
+    if rec.get("pred_exhortation") == "Exhortation":
+        return "Exhortation"
+    return "None"
 
 
 def run_ner(texts: list[str], nlp) -> list[dict]:
@@ -119,11 +120,10 @@ def main():
 
     for rec in records:
         gold = rec.get("gold_label", "")
-        pred = rec.get("pred_label", "")
-        resp = rec.get("model_response", "")
-        phrases = extract_key_words(resp)
+        pred = derive_pred_label(rec)
+        phrases = rec.get("text", "")
 
-        if not phrases:
+        if not phrases or not phrases.strip():
             continue
 
         if gold in INCITING_LABELS and pred == "None":
