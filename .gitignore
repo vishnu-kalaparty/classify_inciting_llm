@@ -4,4 +4,7 @@ __pycache__/
 .python-version
 *.jsonl
 *_metrics.json
+.DS_Store
 *.xlsx
+# Generated error-analysis artifacts (LLooM, NER, Bertopic outputs)
+error_analysis/outputs/
