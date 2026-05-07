@@ -41,11 +41,19 @@ def _col_letter_to_index(ref: str) -> int:
     return c - 1
 
 
-def load_incite_xlsx(path: str | None = None) -> List[Dict[str, Any]]:
+def load_incite_xlsx(
+    path: str | None = None, *, main_sentence_only: bool = False
+) -> List[Dict[str, Any]]:
     """
     Load INCITE dataset from Excel using only stdlib (zipfile + xml).
-    Columns: A=id, B=?, C=sentence before, D=main sentence, E=sentence after, F=label.
-    Returns list of dicts with keys: id, sentence_before, main_sentence, sentence_after, text, label.
+    Columns: A=chunk index (repeats; not a unique row id), B=post id, C=sentence before,
+    D=main sentence, E=sentence after, F=label.
+
+    Returns list of dicts with keys: sheet_row_index (0-based stable row order, unique),
+    id (column A, legacy), sentence_before, main_sentence, sentence_after, text, label.
+
+    If main_sentence_only is False, text joins sentence before, main, and sentence after.
+    If True, text is only the main sentence (column D).
     """
     path = path or INCITE_XLSX
     NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
@@ -62,7 +70,7 @@ def load_incite_xlsx(path: str | None = None) -> List[Dict[str, Any]]:
             return []
 
         items = []
-        for row in rows[1:]:  # skip header
+        for sheet_row_index, row in enumerate(rows[1:]):  # skip header
             row_cells = {}
             for c in row.findall(f"{{{NS}}}c"):
                 ref = c.get("r", "")
@@ -84,10 +92,14 @@ def load_incite_xlsx(path: str | None = None) -> List[Dict[str, Any]]:
             label_raw = str(row_cells.get(5, "") or "").strip()
             row_id = row_cells.get(0, len(items))
 
-            parts = [p for p in [sent_before, main_sent, sent_after] if p]
-            text = " ".join(parts) if parts else main_sent or ""
+            if main_sentence_only:
+                text = main_sent or ""
+            else:
+                parts = [p for p in [sent_before, main_sent, sent_after] if p]
+                text = " ".join(parts) if parts else main_sent or ""
 
             items.append({
+                "sheet_row_index": sheet_row_index,
                 "id": row_id,
                 "sentence_before": sent_before,
                 "main_sentence": main_sent,
@@ -142,6 +154,46 @@ def get_few_shot_for_category(examples: List[dict], category: str) -> List[dict]
     negative_none = none_examples[:1]
 
     return positive + negative_other + negative_none
+
+
+def _normalize_sheet_row_index(raw: Any) -> int | None:
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def filter_items_excluding_few_shot_rows(
+    items: List[Dict[str, Any]],
+    few_shot_examples: List[dict],
+    category: str,
+) -> tuple[List[Dict[str, Any]], int, str]:
+    """
+    Drop dataset rows that appear as few-shot exemplars for this binary category.
+
+    Prefer ``sheet_row_index`` on few-shot entries (0-based order from
+    ``load_incite_xlsx``, unique per spreadsheet row). Column A in the xlsx repeats
+    and must not be used as a unique id. If no sheet indices are present, fall back
+    to matching on ``text``. Returns (filtered_items, n_excluded, mode) where mode
+    is the string sheet_row_index or text.
+    """
+    relevant = get_few_shot_for_category(few_shot_examples, category)
+    idx_set = {_normalize_sheet_row_index(ex.get("sheet_row_index")) for ex in relevant}
+    idx_set.discard(None)
+    if idx_set:
+        kept = [
+            ex
+            for ex in items
+            if _normalize_sheet_row_index(ex.get("sheet_row_index")) not in idx_set
+        ]
+        return kept, len(items) - len(kept), "sheet_row_index"
+    relevant_texts = {
+        ex.get("text", "").strip() for ex in relevant if ex.get("text", "").strip()
+    }
+    kept = [ex for ex in items if ex.get("text", "").strip() not in relevant_texts]
+    return kept, len(items) - len(kept), "text"
 
 
 def format_binary_few_shot_examples(examples: List[dict], category: str) -> str:

@@ -1,2 +1,14 @@
 requests>=2.31.0
 python-dotenv>=1.0.0
+pandas
+openpyxl
+numpy
+scipy
+scikit-learn
+
+# Error analysis
+text_lloom
+tiktoken
+nest_asyncio
+stanza
+matplotlib

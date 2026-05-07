@@ -22,18 +22,17 @@ MAX_TOKENS = 4096
 # --- Paths ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 INCITE_XLSX = os.path.join(SCRIPT_DIR, "INCITE-Dataset.xlsx")
-FEW_SHOT_EXAMPLES_FILE = os.path.join(SCRIPT_DIR, "inciting_few_shot_examples.json")
 
 # --- Run defaults ---
-DEFAULT_MAX_SAMPLES = 20  # -1 = all; >0 = cap
+DEFAULT_MAX_SAMPLES = -1  # -1 = all; >0 = cap
 DEFAULT_SLEEP_SECONDS = 0
 DEFAULT_NUM_THREADS = 5
 
 START_INDEX = 0
-RUN_ERRORS_FILE = False  # Set True to re-run only error records and merge back
+RUN_ERRORS_FILE = True  # Set True to re-run only error records and merge back
 
 # --- Few-shot ---
-ENABLE_FEW_SHOT = True  # Set True and add inciting_few_shot_examples.json if needed
+ENABLE_FEW_SHOT = True  # three examples per class from inciting_few_shot_examples.json
 
 FEW_SHOT_BRIDGE_PROMPT = """
 ---
@@ -60,8 +59,14 @@ LABELS_ORDER = ["Identity", "Imputed Misdeeds", "Exhortation", "None"]
 # --- Binary classification categories ---
 BINARY_CATEGORIES = ["Identity", "Imputed Misdeeds", "Exhortation"]
 
+# --- Model input: the main sentence of each INCITE row ---
+FEW_SHOT_EXAMPLES_FILE = os.path.join(SCRIPT_DIR, "inciting_few_shot_examples.json")
+
 # --- Per-category output file names ---
-DEFAULT_OUTPUT_DIR = "Binary-Classification Run Few-Shot"
+_ZERO_SHOT_DIR = os.path.join("results", "zero_shot")
+_FEW_SHOT_DIR = os.path.join("results", "three_shot")
+
+DEFAULT_OUTPUT_DIR = _FEW_SHOT_DIR if ENABLE_FEW_SHOT else _ZERO_SHOT_DIR
 OUTPUT_IDENTITY = os.path.join(DEFAULT_OUTPUT_DIR, "inciting_identity.jsonl")
 OUTPUT_MISDEEDS = os.path.join(DEFAULT_OUTPUT_DIR, "inciting_misdeeds.jsonl")
 OUTPUT_EXHORTATION = os.path.join(DEFAULT_OUTPUT_DIR, "inciting_exhortation.jsonl")

@@ -2,6 +2,7 @@
 Classify INCITE dataset using 3 independent binary classifiers (GPT 5 mini).
 Each classifier: Identity vs Not, Imputed Misdeeds vs Not, Exhortation vs Not.
 Uses INCITE-Dataset.xlsx: columns sentence before, main sentence, sentence after, label.
+Input text is the main sentence of each INCITE row.
 """
 import json
 import os
@@ -18,7 +19,6 @@ from constants import (
     CATEGORY_OUTPUT_MAP,
     DEFAULT_MAX_SAMPLES,
     DEFAULT_NUM_THREADS,
-    DEFAULT_OUTPUT_DIR,
     DEFAULT_SLEEP_SECONDS,
     ENABLE_FEW_SHOT,
     INCITE_XLSX,
@@ -31,7 +31,11 @@ from constants import (
     START_INDEX,
     VALID_LABELS,
 )
-from data import get_few_shot_for_category, load_few_shot_examples, load_incite_xlsx
+from data import (
+    filter_items_excluding_few_shot_rows,
+    load_few_shot_examples,
+    load_incite_xlsx,
+)
 from prompts import build_binary_prompt
 
 
@@ -151,6 +155,7 @@ def _read_multi_line_jsonl(path: str) -> List[Dict[str, Any]]:
 def _error_record_to_example(record: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "id": record.get("id"),
+        "sheet_row_index": record.get("sheet_row_index"),
         "text": record.get("text", ""),
         "label": record.get("gold_label", ""),
     }
@@ -191,6 +196,7 @@ def retry_errors(
                 results.append({
                     "index": indices[i],
                     "id": records[i].get("id"),
+                    "sheet_row_index": records[i].get("sheet_row_index"),
                     "text": records[i].get("text", ""),
                     "gold_label": records[i].get("gold_label", "Unknown"),
                     "category": category,
@@ -237,6 +243,7 @@ def _process_single(
     return {
         "index": idx,
         "id": example.get("id"),
+        "sheet_row_index": example.get("sheet_row_index"),
         "text": text,
         "gold_label": gold_label,
         "binary_gold": binary_gold,
@@ -289,6 +296,7 @@ def run_binary_classifier(
                 results.append({
                     "index": idx,
                     "id": None,
+                    "sheet_row_index": None,
                     "text": "",
                     "gold_label": "Unknown",
                     "binary_gold": f"Not {category}",
@@ -334,6 +342,7 @@ def combine_results(
         record = {
             "index": base["index"],
             "id": base["id"],
+            "sheet_row_index": base.get("sheet_row_index"),
             "text": base["text"],
             "gold_label": base["gold_label"],
         }
@@ -358,7 +367,9 @@ def classify_incite(
     """
     Run 3 binary classifiers on INCITE dataset.
     """
-    items = load_incite_xlsx(INCITE_XLSX)
+    items = load_incite_xlsx(
+        INCITE_XLSX, main_sentence_only=True
+    )
     items = [
         ex
         for ex in items
@@ -384,6 +395,10 @@ def classify_incite(
         print(f"Few-shot ENABLED ({len(few_shot_examples)} examples)", flush=True)
     else:
         print("Few-shot DISABLED", flush=True)
+    print(
+        "Input text: main sentence only",
+        flush=True,
+    )
 
     print(f"Using {num_threads} threads.", flush=True)
 
@@ -392,10 +407,18 @@ def classify_incite(
         output_path = CATEGORY_OUTPUT_MAP[category]
         cat_items = items
         if few_shot_examples is not None:
-            relevant = get_few_shot_for_category(few_shot_examples, category)
-            relevant_texts = {ex.get("text", "").strip() for ex in relevant}
-            cat_items = [ex for ex in items if ex.get("text", "").strip() not in relevant_texts]
-            print(f"[{category}] Excluded {len(items) - len(cat_items)} few-shot examples from classification.", flush=True)
+            cat_items, n_excluded, fs_mode = filter_items_excluding_few_shot_rows(
+                items, few_shot_examples, category
+            )
+            detail = (
+                "by sheet_row_index"
+                if fs_mode == "sheet_row_index"
+                else "by text (add sheet_row_index to few-shot JSON)"
+            )
+            print(
+                f"[{category}] Excluded {n_excluded} few-shot exemplar row(s) ({detail}).",
+                flush=True,
+            )
         results = run_binary_classifier(
             category=category,
             items=cat_items,

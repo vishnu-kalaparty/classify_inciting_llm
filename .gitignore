@@ -3,7 +3,6 @@ __pycache__/
 .env
 .python-version
 *.jsonl
-*_metrics.json
 .DS_Store
 *.xlsx
 # Generated error-analysis artifacts (LLooM, NER, Bertopic outputs)
