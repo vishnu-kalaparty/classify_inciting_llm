@@ -1,27 +1,27 @@
 """
 Stanford NER analysis on key phrases from misclassified samples (Inciting dataset).
 Uses Stanza (Stanford NLP) to extract named entities from key phrases
-in the binary zero-shot combined outputs for False Negatives and False Positives.
+in binary combined outputs for False Negatives and False Positives.
 
 FP = Gold: None, Pred: Inciting (Identity / Imputed Misdeeds / Exhortation)
 FN = Gold: Inciting, Pred: None
 """
 
+import argparse
 import json
-import re
 import csv
 from pathlib import Path
 from collections import Counter
 
 import stanza
 
-JSONL_PATH = (
+_DEFAULT_COMBINED = (
     Path(__file__).resolve().parent.parent
-    / "Binary-Classification Run Zero-Shot"
+    / "results"
+    / "zero_shot"
     / "inciting_combined.jsonl"
 )
-OUTPUT_DIR = Path(__file__).resolve().parent / "outputs" / "ner"
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+_OUTPUT_ROOT = Path(__file__).resolve().parent / "outputs" / "ner"
 
 INCITING_LABELS = {"Identity", "Imputed Misdeeds", "Exhortation"}
 
@@ -80,15 +80,15 @@ def summarise_entities(entities: list[dict]) -> Counter:
     return Counter((e["text"], e["type"]) for e in entities)
 
 
-def save_entity_results(entities: list[dict], summary: Counter, tag: str):
-    detail_path = OUTPUT_DIR / f"ner_{tag}_entities.csv"
+def save_entity_results(entities: list[dict], summary: Counter, tag: str, output_dir: Path):
+    detail_path = output_dir / f"ner_{tag}_entities.csv"
     with open(detail_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=["text", "type", "source_phrase"])
         writer.writeheader()
         writer.writerows(entities)
     print(f"  Entity details saved: {detail_path}")
 
-    summary_path = OUTPUT_DIR / f"ner_{tag}_summary.csv"
+    summary_path = output_dir / f"ner_{tag}_summary.csv"
     with open(summary_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["entity", "type", "count"])
@@ -97,7 +97,7 @@ def save_entity_results(entities: list[dict], summary: Counter, tag: str):
     print(f"  Entity summary saved: {summary_path}")
 
     type_counts = Counter(e["type"] for e in entities)
-    type_path = OUTPUT_DIR / f"ner_{tag}_type_distribution.csv"
+    type_path = output_dir / f"ner_{tag}_type_distribution.csv"
     with open(type_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["entity_type", "count"])
@@ -107,12 +107,30 @@ def save_entity_results(entities: list[dict], summary: Counter, tag: str):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="NER on FN/FP key phrases from inciting_combined.jsonl")
+    parser.add_argument(
+        "--combined-jsonl",
+        type=Path,
+        default=_DEFAULT_COMBINED,
+        help="Path to inciting_combined.jsonl (binary combined format)",
+    )
+    parser.add_argument(
+        "--run-name",
+        type=str,
+        default="default",
+        help="Subfolder under error_analysis/outputs/ner/ for CSV outputs (e.g. zero_shot)",
+    )
+    args = parser.parse_args()
+    jsonl_path = args.combined_jsonl.resolve()
+    output_dir = _OUTPUT_ROOT / args.run_name
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     print("Downloading/loading Stanza English NER model ...")
     stanza.download("en", processors="tokenize,ner", verbose=False)
     nlp = stanza.Pipeline("en", processors="tokenize,ner", verbose=False)
 
-    print("Loading JSONL ...")
-    records = load_jsonl(JSONL_PATH)
+    print(f"Loading JSONL: {jsonl_path}")
+    records = load_jsonl(jsonl_path)
     print(f"  Total records: {len(records)}")
 
     fn_phrases = []
@@ -138,13 +156,13 @@ def main():
     fn_entities = run_ner(fn_phrases, nlp)
     fn_summary = summarise_entities(fn_entities)
     print(f"  Found {len(fn_entities)} entity mentions ({len(fn_summary)} unique)")
-    save_entity_results(fn_entities, fn_summary, "fn_inciting_pred_none")
+    save_entity_results(fn_entities, fn_summary, "fn_inciting_pred_none", output_dir)
 
     print("\n--- False Positives: Stanford NER on Key Words ---")
     fp_entities = run_ner(fp_phrases, nlp)
     fp_summary = summarise_entities(fp_entities)
     print(f"  Found {len(fp_entities)} entity mentions ({len(fp_summary)} unique)")
-    save_entity_results(fp_entities, fp_summary, "fp_none_pred_inciting")
+    save_entity_results(fp_entities, fp_summary, "fp_none_pred_inciting", output_dir)
 
     print("\n--- Top Entities ---")
     for label, summary in [("FN", fn_summary), ("FP", fp_summary)]:
