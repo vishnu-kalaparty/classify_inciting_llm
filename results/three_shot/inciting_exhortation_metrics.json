@@ -1,0 +1,35 @@
+{
+  "category": "Exhortation",
+  "total": 6992,
+  "skipped": 2,
+  "accuracy": 0.8874427917620137,
+  "positive": {
+    "precision": 0.29171528588098017,
+    "recall": 0.5813953488372093,
+    "f1": 0.3885003885003885
+  },
+  "not_exhortation": {
+    "precision": 0.9706601466992665,
+    "recall": 0.9074977141115513,
+    "f1": 0.9380168543750492
+  },
+  "macro_f1": 0.6632586214377189,
+  "confusion_matrix": {
+    "Identity": {
+      "Exhortation": 160,
+      "Not Exhortation": 904
+    },
+    "Imputed Misdeeds": {
+      "Exhortation": 187,
+      "Not Exhortation": 1390
+    },
+    "Exhortation": {
+      "Exhortation": 250,
+      "Not Exhortation": 180
+    },
+    "None": {
+      "Exhortation": 260,
+      "Not Exhortation": 3661
+    }
+  }
+}

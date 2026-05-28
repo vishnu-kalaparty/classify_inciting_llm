@@ -1,0 +1,35 @@
+{
+  "category": "Imputed Misdeeds",
+  "total": 6992,
+  "skipped": 2,
+  "accuracy": 0.6962242562929062,
+  "positive": {
+    "precision": 0.39985380116959063,
+    "recall": 0.6941624365482234,
+    "f1": 0.5074211502782932
+  },
+  "not_imputed_misdeeds": {
+    "precision": 0.8867481203007519,
+    "recall": 0.696824224519941,
+    "f1": 0.7803970223325063
+  },
+  "macro_f1": 0.6439090863053998,
+  "confusion_matrix": {
+    "Identity": {
+      "Imputed Misdeeds": 604,
+      "Not Imputed Misdeeds": 460
+    },
+    "Imputed Misdeeds": {
+      "Imputed Misdeeds": 1094,
+      "Not Imputed Misdeeds": 482
+    },
+    "Exhortation": {
+      "Imputed Misdeeds": 136,
+      "Not Imputed Misdeeds": 296
+    },
+    "None": {
+      "Imputed Misdeeds": 902,
+      "Not Imputed Misdeeds": 3018
+    }
+  }
+}

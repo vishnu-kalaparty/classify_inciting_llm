@@ -1,0 +1,36 @@
+{
+  "per_category": {
+    "Identity": {
+      "cohen_kappa": 0.2398840946807813,
+      "spearman_rho": 0.31077300758061965,
+      "spearman_p_value": 1.8933333247258607e-156,
+      "sample_size": 6994
+    },
+    "Imputed Misdeeds": {
+      "cohen_kappa": 0.050463335701318224,
+      "spearman_rho": 0.05446073699171371,
+      "spearman_p_value": 5.185808974055888e-06,
+      "sample_size": 6994
+    },
+    "Exhortation": {
+      "cohen_kappa": 0.050823595153391854,
+      "spearman_rho": 0.054458462840304006,
+      "spearman_p_value": 5.19051458389611e-06,
+      "sample_size": 6994
+    },
+    "None": {
+      "cohen_kappa": 0.2376264029546037,
+      "spearman_rho": 0.26501051581822166,
+      "spearman_p_value": 9.895910519161976e-113,
+      "sample_size": 6994
+    }
+  },
+  "macro_cohen_kappa": 0.14469935712252377,
+  "macro_spearman_rho": 0.17117568080771475,
+  "labels_order": [
+    "Identity",
+    "Imputed Misdeeds",
+    "Exhortation",
+    "None"
+  ]
+}

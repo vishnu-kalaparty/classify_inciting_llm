@@ -1,0 +1,35 @@
+{
+  "category": "Identity",
+  "total": 6998,
+  "skipped": 2,
+  "accuracy": 0.6724778508145184,
+  "positive": {
+    "precision": 0.2819054390330608,
+    "recall": 0.7446009389671362,
+    "f1": 0.40897369778236203
+  },
+  "not_identity": {
+    "precision": 0.9350059737156511,
+    "recall": 0.6595314343502444,
+    "f1": 0.7734730183830796
+  },
+  "macro_f1": 0.5912233580827209,
+  "confusion_matrix": {
+    "Identity": {
+      "Identity": 793,
+      "Not Identity": 272
+    },
+    "Imputed Misdeeds": {
+      "Identity": 812,
+      "Not Identity": 766
+    },
+    "Exhortation": {
+      "Identity": 235,
+      "Not Identity": 198
+    },
+    "None": {
+      "Identity": 973,
+      "Not Identity": 2949
+    }
+  }
+}
